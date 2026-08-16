@@ -95,3 +95,4 @@ dmypy.json
 *.log
 *.sqlite
 *.sqlite3
+data/
