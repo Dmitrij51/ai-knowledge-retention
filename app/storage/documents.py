@@ -1,12 +1,17 @@
 from pathlib import Path
+
 from sqlalchemy import select
+from sqlalchemy.orm import Session
+
 from app.models.document import Document
-from app.storage.database import SessionLocal
 
 
-def create_document(file_path: str) -> Document:
+def create_document(
+    session: Session,
+    file_path: str,
+) -> Document:
     """
-    Добавляет документ в базу данных.
+    Создаёт документ в текущей SQLAlchemy-сессии.
     """
 
     path = Path(file_path)
@@ -17,29 +22,30 @@ def create_document(file_path: str) -> Document:
         file_type=path.suffix.lower().lstrip("."),
     )
 
-    with SessionLocal() as session:
-        session.add(document)
-        session.commit()
-        session.refresh(document)
+    session.add(document)
+    session.flush()
 
-        return document
+    return document
 
 
-def get_document(document_id: int) -> Document | None:
+def get_document(
+    session: Session,
+    document_id: int,
+) -> Document | None:
     """
     Возвращает документ по ID.
     """
 
-    with SessionLocal() as session:
-        return session.get(Document, document_id)
+    return session.get(Document, document_id)
 
 
-def get_documents() -> list[Document]:
+def get_documents(
+    session: Session,
+) -> list[Document]:
     """
     Возвращает все документы.
     """
 
-    with SessionLocal() as session:
-        result = session.execute(select(Document).order_by(Document.id))
+    stmt = select(Document).order_by(Document.id)
 
-        return list(result.scalars().all())
+    return list(session.scalars(stmt).all())

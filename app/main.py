@@ -1,34 +1,34 @@
-from sqlalchemy import select
-
 from app.ai.embeddings import EmbeddingModel
-from app.models.chunk import Chunk
-from app.models.document import Document
-from app.services.embeddings import EmbeddingService
-from app.storage.database import SessionLocal
+from app.search.semantic import SemanticSearch
+from app.search.hybrid import HybridSearch
 
 
 def main():
 
+    # Загружаем модель E5
     model = EmbeddingModel()
 
-    service = EmbeddingService(model)
+    # Создаём Semantic Search
+    semantic_search = SemanticSearch(model)
 
-    with SessionLocal() as session:
-        chunk = session.scalar(select(Chunk).limit(1))
+    # Создаём Hybrid Search
+    hybrid_search = HybridSearch(semantic_search)
 
-        if chunk is None:
-            print("Chunks не найдены")
-            return
+    query = "LLM"
 
-        service.embed_chunk(chunk)
+    results = hybrid_search.search(
+        query,
+        limit=5,
+    )
 
-        session.commit()
+    print(f"\nЗапрос: {query}")
+    print(f"Найдено: {len(results)}\n")
 
+    for score, chunk in results:
+        print(f"Score: {score:.4f}")
         print(f"Chunk ID: {chunk.id}")
-
-        print(f"Embedding bytes: {len(chunk.embedding)}")
-
-        print(f"Embedding model: {chunk.embedding_model}")
+        print(chunk.content)
+        print("-" * 60)
 
 
 if __name__ == "__main__":

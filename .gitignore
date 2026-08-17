@@ -96,3 +96,12 @@ dmypy.json
 *.sqlite
 *.sqlite3
 data/
+
+
+# AI models
+models/
+*.safetensors
+
+# Hugging Face cache
+.huggingface/
+.cache/
