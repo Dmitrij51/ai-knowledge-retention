@@ -45,3 +45,19 @@ def get_chunks(document_id: int) -> list[Chunk]:
         )
 
         return chunks
+
+
+def update_chunk_embedding(
+    chunk_id: int,
+    embedding: bytes,
+) -> None:
+
+    with SessionLocal() as session:
+        chunk = session.get(Chunk, chunk_id)
+
+        if chunk is None:
+            raise ValueError(f"Chunk {chunk_id} not found")
+
+        chunk.embedding = embedding
+
+        session.commit()
