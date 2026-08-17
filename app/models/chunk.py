@@ -25,3 +25,8 @@ class Chunk(Base):
         LargeBinary,
         nullable=True,
     )
+
+    embedding_model: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
