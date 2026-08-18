@@ -1,10 +1,29 @@
-from app.services.ingestion import ingest_document
+import time
+
+from app.watcher.manager import WatcherManager
 
 
 def main():
-    document_id = ingest_document("test.txt")
+    manager = WatcherManager()
 
-    print(f"\nDocument ID: {document_id}")
+    try:
+        count = manager.start()
+
+        if count == 0:
+            return
+
+        print("Система запущена.")
+        print("Наблюдение за файлами активно.")
+        print("Для остановки нажми Ctrl+C")
+
+        while True:
+            time.sleep(1)
+
+    except KeyboardInterrupt:
+        print("\nОстановка приложения...")
+
+    finally:
+        manager.stop()
 
 
 if __name__ == "__main__":
