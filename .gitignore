@@ -99,7 +99,7 @@ data/
 
 
 # AI models
-models/
+models_ai/
 *.safetensors
 
 # Hugging Face cache
