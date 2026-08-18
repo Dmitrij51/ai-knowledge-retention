@@ -8,16 +8,18 @@ from app.watcher.watcher import FileWatcherHandler
 class WatcherManager:
     """
     Управляет наблюдением за всеми папками,
-    которые пользователь выбрал для запоминания.
+    которые пользователь выбрал для отслеживания.
     """
 
     def __init__(self):
         self.observer = Observer()
 
-    def start(self):
+    def start(self) -> int:
         """
-        Загружает отслеживаемые папки из БД
-        и запускает Watchdog для каждой из них.
+        Загружает включённые папки из БД
+        и запускает Watchdog для каждой.
+
+        Возвращает количество отслеживаемых папок.
         """
 
         with SessionLocal() as session:
@@ -25,7 +27,7 @@ class WatcherManager:
 
             if not folders:
                 print("Нет папок для отслеживания.")
-                return
+                return 0
 
             for folder in folders:
                 print(
@@ -43,13 +45,24 @@ class WatcherManager:
         self.observer.start()
 
         print(
-            f"Наблюдение запущено для {len(folders)} папок."
+            f"Наблюдение запущено для "
+            f"{len(folders)} папок."
         )
 
-    def stop(self):
+        return len(folders)
+
+    def stop(self) -> None:
         """
         Останавливает Watchdog.
         """
 
+        if not self.observer.is_alive():
+            return
+
+        print("Остановка наблюдения...")
+
         self.observer.stop()
         self.observer.join()
+
+        print("Наблюдение остановлено.")
+
