@@ -105,3 +105,6 @@ models_ai/
 # Hugging Face cache
 .huggingface/
 .cache/
+
+# Test
+test/
