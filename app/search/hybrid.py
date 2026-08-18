@@ -1,12 +1,20 @@
+from app.models.chunk import Chunk
 from app.search.fts import search_fts
 from app.search.semantic import SemanticSearch
-from app.models.chunk import Chunk
 
 
 class HybridSearch:
     """
     Комбинированный поиск:
-    FTS5 + Semantic Search.
+
+    Semantic Search + FTS5.
+
+    Если chunk найден обоими поисками,
+    его итоговый score рассчитывается
+    как взвешенная комбинация.
+
+    Если найден только одним поиском,
+    используется score этого поиска.
     """
 
     def __init__(
@@ -15,6 +23,56 @@ class HybridSearch:
     ):
         self.semantic_search = semantic_search
 
+    @staticmethod
+    def _normalize_semantic_scores(
+        results: list[tuple[float, Chunk]],
+    ) -> dict[int, float]:
+        """
+        Semantic score уже находится примерно
+        в диапазоне [-1, 1].
+
+        Приводим его к диапазону [0, 1].
+        """
+
+        normalized = {}
+
+        for score, chunk in results:
+            score = max(-1.0, min(1.0, score))
+
+            normalized[chunk.id] = (score + 1.0) / 2.0
+
+        return normalized
+
+    @staticmethod
+    def _normalize_keyword_scores(
+        results: list[tuple[float, Chunk]],
+    ) -> dict[int, float]:
+        """
+        SQLite FTS5 BM25:
+
+        меньше score = лучше результат.
+
+        Преобразуем его в:
+
+        больше score = лучше результат.
+        """
+
+        if not results:
+            return {}
+
+        scores = [score for score, _ in results]
+
+        min_score = min(scores)
+        max_score = max(scores)
+
+        if max_score == min_score:
+            return {chunk.id: 1.0 for _, chunk in results}
+
+        return {
+            chunk.id: ((max_score - score) / (max_score - min_score))
+            for score, chunk in results
+        }
+
     def search(
         self,
         query: str,
@@ -22,6 +80,19 @@ class HybridSearch:
         semantic_weight: float = 0.7,
         keyword_weight: float = 0.3,
     ) -> list[tuple[float, Chunk]]:
+        """
+        Выполняет hybrid search.
+
+        Возвращает:
+
+            [
+                (score, Chunk),
+                ...
+            ]
+
+        Чем выше score,
+        тем более релевантен chunk.
+        """
 
         if not query.strip():
             return []
@@ -29,56 +100,55 @@ class HybridSearch:
         if limit <= 0:
             raise ValueError("limit должен быть больше 0")
 
-        if semantic_weight < 0 or keyword_weight < 0:
-            raise ValueError("Вес поиска не может быть отрицательным")
+        if semantic_weight < 0:
+            raise ValueError("semantic_weight не может быть отрицательным")
+
+        if keyword_weight < 0:
+            raise ValueError("keyword_weight не может быть отрицательным")
 
         total_weight = semantic_weight + keyword_weight
 
         if total_weight == 0:
             raise ValueError("Сумма весов должна быть больше 0")
 
-        # Нормализуем веса
         semantic_weight /= total_weight
         keyword_weight /= total_weight
 
-        # -------------------------
-        # 1. Semantic Search
-        # -------------------------
+        search_limit = max(
+            limit * 3,
+            10,
+        )
+
+        # =====================================
+        # 1. SEMANTIC SEARCH
+        # =====================================
 
         semantic_results = self.semantic_search.search(
             query,
-            limit=limit * 3,
+            limit=search_limit,
         )
 
-        semantic_scores = {chunk.id: score for score, chunk in semantic_results}
+        semantic_scores = self._normalize_semantic_scores(semantic_results)
 
         chunks = {chunk.id: chunk for _, chunk in semantic_results}
 
-        # -------------------------
+        # =====================================
         # 2. FTS5
-        # -------------------------
+        # =====================================
 
         keyword_results = search_fts(
             query,
-            limit=limit * 3,
+            limit=search_limit,
         )
 
-        keyword_scores = {}
+        keyword_scores = self._normalize_keyword_scores(keyword_results)
 
-        total_keyword = len(keyword_results)
-
-        for index, (fts_score, chunk) in enumerate(keyword_results):
-            if total_keyword == 1:
-                score = 1.0
-            else:
-                score = 1.0 - (index / total_keyword)
-
-            keyword_scores[chunk.id] = score
+        for _, chunk in keyword_results:
             chunks[chunk.id] = chunk
 
-        # -------------------------
-        # 3. Объединяем результаты
-        # -------------------------
+        # =====================================
+        # 3. ОБЪЕДИНЕНИЕ
+        # =====================================
 
         results = []
 
@@ -93,15 +163,46 @@ class HybridSearch:
                 0.0,
             )
 
-            final_score = (
-                semantic_score * semantic_weight + keyword_score * keyword_weight
+            has_semantic = chunk_id in semantic_scores
+
+            has_keyword = chunk_id in keyword_scores
+
+            # ---------------------------------
+            # Оба поиска нашли chunk
+            # ---------------------------------
+
+            if has_semantic and has_keyword:
+                final_score = (
+                    semantic_score * semantic_weight + keyword_score * keyword_weight
+                )
+
+            # ---------------------------------
+            # Только FTS5
+            # ---------------------------------
+
+            elif has_keyword:
+                final_score = keyword_score
+
+            # ---------------------------------
+            # Только Semantic
+            # ---------------------------------
+
+            elif has_semantic:
+                final_score = semantic_score
+
+            else:
+                continue
+
+            results.append(
+                (
+                    final_score,
+                    chunk,
+                )
             )
 
-            results.append((final_score, chunk))
-
-        # -------------------------
-        # 4. Сортировка
-        # -------------------------
+        # =====================================
+        # 4. СОРТИРОВКА
+        # =====================================
 
         results.sort(
             key=lambda item: item[0],

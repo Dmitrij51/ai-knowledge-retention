@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 
 from app.models.chunk import Chunk
@@ -28,6 +28,19 @@ def create_chunks(
     session.flush()
 
     return chunk_objects
+
+
+def delete_document_chunks(
+    session: Session,
+    document_id: int,
+) -> None:
+    """
+    Удаляет все chunks документа.
+    """
+
+    stmt = delete(Chunk).where(Chunk.document_id == document_id)
+
+    session.execute(stmt)
 
 
 def get_chunks(

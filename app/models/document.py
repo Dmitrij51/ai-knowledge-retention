@@ -10,9 +10,29 @@ class Document(Base):
     __tablename__ = "documents"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    filename: Mapped[str] = mapped_column(String(255), nullable=False)
-    path: Mapped[str] = mapped_column(String(1000), nullable=False)
-    file_type: Mapped[str] = mapped_column(String(50), nullable=False)
+
+    filename: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    path: Mapped[str] = mapped_column(
+        String(1000),
+        nullable=False,
+    )
+
+    file_type: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+    )
+
+    file_hash: Mapped[str] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
