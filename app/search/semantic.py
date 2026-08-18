@@ -4,13 +4,19 @@ from sqlalchemy import select
 from app.ai.embeddings import EmbeddingModel
 from app.ai.vector import bytes_to_embedding
 from app.models.chunk import Chunk
+from app.models.document import Document
 from app.storage.database import SessionLocal
 
 
 class SemanticSearch:
     """
-    Семантический поиск по embeddings, сохранённым в SQLite.
+    Семантический поиск по embeddings,
+    сохранённым в SQLite.
+
+    В поиск попадают только chunks активных документов.
     """
+
+    MIN_CHUNK_LENGTH = 20
 
     def __init__(self, model: EmbeddingModel):
         self.model = model
@@ -39,6 +45,11 @@ class SemanticSearch:
     ) -> list[tuple[float, Chunk]]:
         """
         Ищет наиболее похожие chunks по смыслу.
+
+        Учитываются только:
+        - chunks с embedding;
+        - chunks активных документов;
+        - chunks достаточного размера.
         """
 
         if not query.strip():
@@ -47,22 +58,48 @@ class SemanticSearch:
         if limit <= 0:
             raise ValueError("limit должен быть больше 0")
 
-        # Embedding пользовательского запроса
+        # ---------------------------------
+        # 1. Embedding запроса
+        # ---------------------------------
+
         query_embedding = np.array(
             self.model.embed_query(query),
             dtype=np.float32,
         )
 
         with SessionLocal() as session:
-            # Берём только chunks,
-            # у которых уже есть embedding
-            chunks = session.scalars(
-                select(Chunk).where(Chunk.embedding.is_not(None))
-            ).all()
+            # ---------------------------------
+            # 2. Получаем только активные chunks
+            # ---------------------------------
+
+            stmt = (
+                select(Chunk)
+                .join(
+                    Document,
+                    Chunk.document_id == Document.id,
+                )
+                .where(
+                    Chunk.embedding.is_not(None),
+                    Document.is_deleted.is_(False),
+                )
+            )
+
+            chunks = session.scalars(stmt).all()
 
             results = []
 
+            # ---------------------------------
+            # 3. Сравниваем embeddings
+            # ---------------------------------
+
             for chunk in chunks:
+                # Игнорируем слишком маленькие chunks
+                if not chunk.content:
+                    continue
+
+                if len(chunk.content.strip()) < self.MIN_CHUNK_LENGTH:
+                    continue
+
                 try:
                     embedding = bytes_to_embedding(chunk.embedding)
 
@@ -79,10 +116,13 @@ class SemanticSearch:
 
                 except (TypeError, ValueError):
                     # Повреждённый embedding
-                    # не должен ломать весь поиск
+                    # не должен ломать весь поиск.
                     continue
 
-        # Самые похожие сначала
+        # ---------------------------------
+        # 4. Сортировка
+        # ---------------------------------
+
         results.sort(
             key=lambda item: item[0],
             reverse=True,

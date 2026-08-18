@@ -3,17 +3,24 @@ import re
 from sqlalchemy import select, text
 
 from app.models.chunk import Chunk
+from app.models.document import Document
 from app.storage.database import SessionLocal
+
+
+MIN_CHUNK_LENGTH = 20
 
 
 def _prepare_fts_query(query: str) -> str:
     """
-    Подготавливает запрос для SQLite FTS5.
+    Подготавливает пользовательский запрос
+    для SQLite FTS5.
 
     Например:
+
         docker CMD
 
     превращается в:
+
         "docker"* "CMD"*
     """
 
@@ -37,10 +44,11 @@ def search_fts(
     Полнотекстовый поиск через SQLite FTS5.
 
     Возвращает:
+
         (BM25 score, Chunk)
 
     В SQLite FTS5:
-        меньше score = более релевантный результат.
+        меньше score = лучше результат.
     """
 
     if not query.strip():
@@ -55,7 +63,10 @@ def search_fts(
         return []
 
     with SessionLocal() as session:
-        # 1. Получаем ID chunks и BM25 score из FTS5
+        # ---------------------------------
+        # 1. Поиск через FTS5
+        # ---------------------------------
+
         fts_stmt = text(
             """
             SELECT
@@ -79,30 +90,52 @@ def search_fts(
         if not fts_rows:
             return []
 
-        # Сохраняем порядок FTS5
         scores = {int(rowid): float(score) for rowid, score in fts_rows}
 
         chunk_ids = list(scores.keys())
 
-        # 2. Получаем реальные ORM Chunk
-        chunks_stmt = select(Chunk).where(Chunk.id.in_(chunk_ids))
+        # ---------------------------------
+        # 2. Получаем chunks
+        #    только активных документов
+        # ---------------------------------
+
+        chunks_stmt = (
+            select(Chunk)
+            .join(
+                Document,
+                Chunk.document_id == Document.id,
+            )
+            .where(
+                Chunk.id.in_(chunk_ids),
+                Document.is_deleted.is_(False),
+            )
+        )
 
         chunks = session.scalars(chunks_stmt).all()
 
-        chunks_by_id = {chunk.id: chunk for chunk in chunks}
+        chunks_by_id = {
+            chunk.id: chunk
+            for chunk in chunks
+            if chunk.content and len(chunk.content.strip()) >= MIN_CHUNK_LENGTH
+        }
 
+        # ---------------------------------
         # 3. Восстанавливаем порядок FTS5
+        # ---------------------------------
+
         results = []
 
         for chunk_id in chunk_ids:
             chunk = chunks_by_id.get(chunk_id)
 
-            if chunk is not None:
-                results.append(
-                    (
-                        scores[chunk_id],
-                        chunk,
-                    )
+            if chunk is None:
+                continue
+
+            results.append(
+                (
+                    scores[chunk_id],
+                    chunk,
                 )
+            )
 
         return results
