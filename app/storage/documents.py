@@ -11,10 +11,14 @@ def get_document_by_hash(
     file_hash: str,
 ) -> Document | None:
     """
-    Возвращает документ по SHA-256 хешу.
+    Возвращает активный документ по SHA-256 хешу.
+    Удалённые документы не учитываются.
     """
 
-    stmt = select(Document).where(Document.file_hash == file_hash)
+    stmt = select(Document).where(
+        Document.file_hash == file_hash,
+        Document.is_deleted.is_(False),
+    )
 
     return session.scalar(stmt)
 
@@ -25,14 +29,14 @@ def create_document(
     file_hash: str,
 ) -> Document:
     """
-    Создаёт документ в текущей SQLAlchemy-сессии.
+    Создаёт новый документ.
     """
 
-    path = Path(file_path)
+    path = Path(file_path).resolve()
 
     document = Document(
         filename=path.name,
-        path=str(path.resolve()),
+        path=str(path),
         file_type=path.suffix.lower().lstrip("."),
         file_hash=file_hash,
     )
@@ -68,6 +72,7 @@ def update_document(
     document.filename = path.name
     document.file_type = path.suffix.lower().lstrip(".")
     document.file_hash = file_hash
+    document.is_deleted = False
 
     session.flush()
 
@@ -78,10 +83,10 @@ def get_documents(
     session: Session,
 ) -> list[Document]:
     """
-    Возвращает все документы.
+    Возвращает только активные документы.
     """
 
-    stmt = select(Document).order_by(Document.id)
+    stmt = select(Document).where(Document.is_deleted.is_(False)).order_by(Document.id)
 
     return list(session.scalars(stmt).all())
 
@@ -91,11 +96,36 @@ def get_document_by_path(
     file_path: str,
 ) -> Document | None:
     """
-    Возвращает документ по пути к файлу.
+    Возвращает активный документ по пути.
+    Удалённые документы не учитываются.
     """
 
     path = Path(file_path).resolve()
 
-    stmt = select(Document).where(Document.path == str(path))
+    stmt = select(Document).where(
+        Document.path == str(path),
+        Document.is_deleted.is_(False),
+    )
 
     return session.scalar(stmt)
+
+
+def mark_document_deleted(
+    session: Session,
+    document: Document,
+) -> None:
+    """
+    Помечает документ как удалённый.
+
+    Сам документ и его история версий
+    остаются в базе данных.
+    """
+
+    document.is_deleted = True
+
+    session.flush()
+
+    print(
+        f"[DELETE] Документ помечен как удалённый: "
+        f"{document.filename} (ID={document.id})"
+    )

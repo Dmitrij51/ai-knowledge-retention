@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, func
+from sqlalchemy import Boolean, DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.storage.database import Base
@@ -29,6 +29,12 @@ class Document(Base):
     file_hash: Mapped[str] = mapped_column(
         String(64),
         nullable=True,
+    )
+
+    is_deleted: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default="0",
     )
 
     created_at: Mapped[datetime] = mapped_column(
