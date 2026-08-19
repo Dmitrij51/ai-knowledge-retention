@@ -9,12 +9,8 @@ class HybridSearch:
 
     Semantic Search + FTS5.
 
-    Если chunk найден обоими поисками,
-    его итоговый score рассчитывается
-    как взвешенная комбинация.
-
-    Если найден только одним поиском,
-    используется score этого поиска.
+    Чем выше итоговый score,
+    тем более релевантен chunk.
     """
 
     def __init__(
@@ -28,17 +24,14 @@ class HybridSearch:
         results: list[tuple[float, Chunk]],
     ) -> dict[int, float]:
         """
-        Semantic score уже находится примерно
-        в диапазоне [-1, 1].
-
-        Приводим его к диапазону [0, 1].
+        Приводит cosine similarity из [-1, 1]
+        к диапазону [0, 1].
         """
 
         normalized = {}
 
         for score, chunk in results:
             score = max(-1.0, min(1.0, score))
-
             normalized[chunk.id] = (score + 1.0) / 2.0
 
         return normalized
@@ -52,7 +45,7 @@ class HybridSearch:
 
         меньше score = лучше результат.
 
-        Преобразуем его в:
+        Преобразуем в:
 
         больше score = лучше результат.
         """
@@ -79,9 +72,13 @@ class HybridSearch:
         limit: int = 5,
         semantic_weight: float = 0.7,
         keyword_weight: float = 0.3,
+        min_score: float = 0.55,
     ) -> list[tuple[float, Chunk]]:
         """
         Выполняет hybrid search.
+
+        Дополнительно удаляет слишком слабые результаты
+        по итоговому score.
 
         Возвращает:
 
@@ -89,9 +86,6 @@ class HybridSearch:
                 (score, Chunk),
                 ...
             ]
-
-        Чем выше score,
-        тем более релевантен chunk.
         """
 
         if not query.strip():
@@ -106,6 +100,9 @@ class HybridSearch:
         if keyword_weight < 0:
             raise ValueError("keyword_weight не может быть отрицательным")
 
+        if not 0 <= min_score <= 1:
+            raise ValueError("min_score должен находиться между 0 и 1")
+
         total_weight = semantic_weight + keyword_weight
 
         if total_weight == 0:
@@ -114,14 +111,16 @@ class HybridSearch:
         semantic_weight /= total_weight
         keyword_weight /= total_weight
 
+        # Ищем больше результатов,
+        # чтобы после фильтрации остались хорошие.
         search_limit = max(
-            limit * 3,
-            10,
+            limit * 4,
+            20,
         )
 
-        # =====================================
-        # 1. SEMANTIC SEARCH
-        # =====================================
+        # ---------------------------------
+        # 1. Semantic Search
+        # ---------------------------------
 
         semantic_results = self.semantic_search.search(
             query,
@@ -132,9 +131,9 @@ class HybridSearch:
 
         chunks = {chunk.id: chunk for _, chunk in semantic_results}
 
-        # =====================================
+        # ---------------------------------
         # 2. FTS5
-        # =====================================
+        # ---------------------------------
 
         keyword_results = search_fts(
             query,
@@ -146,9 +145,9 @@ class HybridSearch:
         for _, chunk in keyword_results:
             chunks[chunk.id] = chunk
 
-        # =====================================
-        # 3. ОБЪЕДИНЕНИЕ
-        # =====================================
+        # ---------------------------------
+        # 3. Объединяем результаты
+        # ---------------------------------
 
         results = []
 
@@ -167,30 +166,25 @@ class HybridSearch:
 
             has_keyword = chunk_id in keyword_scores
 
-            # ---------------------------------
-            # Оба поиска нашли chunk
-            # ---------------------------------
-
             if has_semantic and has_keyword:
                 final_score = (
                     semantic_score * semantic_weight + keyword_score * keyword_weight
                 )
 
-            # ---------------------------------
-            # Только FTS5
-            # ---------------------------------
-
             elif has_keyword:
                 final_score = keyword_score
-
-            # ---------------------------------
-            # Только Semantic
-            # ---------------------------------
 
             elif has_semantic:
                 final_score = semantic_score
 
             else:
+                continue
+
+            # ---------------------------------
+            # Фильтрация слабых результатов
+            # ---------------------------------
+
+            if final_score < min_score:
                 continue
 
             results.append(
@@ -200,9 +194,9 @@ class HybridSearch:
                 )
             )
 
-        # =====================================
-        # 4. СОРТИРОВКА
-        # =====================================
+        # ---------------------------------
+        # 4. Сортировка
+        # ---------------------------------
 
         results.sort(
             key=lambda item: item[0],

@@ -15,6 +15,17 @@ class SearchResponse(BaseModel):
     results: list[SearchResult]
 
 
+class AskSource(BaseModel):
+    document: str
+    content: str
+
+
+class AskResponse(BaseModel):
+    question: str
+    answer: str
+    sources: list[AskSource]
+
+
 class DocumentResponse(BaseModel):
     id: int
     filename: str
