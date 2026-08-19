@@ -1,4 +1,7 @@
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 
 from app.ai.rag import RAGService
@@ -13,11 +16,23 @@ from app.api.schemas import (
 )
 from app.models.document import Document
 from app.storage.database import SessionLocal
+from app.models.file_version import FileVersion
 
 
 router = APIRouter()
 
 rag_service = RAGService()
+
+
+@router.get("/")
+def home():
+    """
+    Главная страница приложения.
+    """
+
+    index_file = Path(__file__).resolve().parent.parent / "web" / "index.html"
+
+    return FileResponse(index_file)
 
 
 @router.get(
@@ -168,8 +183,6 @@ def get_document_versions(
     Возвращает историю версий документа.
     """
 
-    from app.models.document_version import DocumentVersion
-
     with SessionLocal() as session:
         document = session.scalar(select(Document).where(Document.id == document_id))
 
@@ -180,9 +193,9 @@ def get_document_versions(
             )
 
         versions = session.scalars(
-            select(DocumentVersion)
-            .where(DocumentVersion.document_id == document_id)
-            .order_by(DocumentVersion.version.desc())
+            select(FileVersion)
+            .where(FileVersion.document_id == document_id)
+            .order_by(FileVersion.version.desc())
         ).all()
 
         return DocumentVersionsResponse(

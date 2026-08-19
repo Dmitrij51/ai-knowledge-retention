@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>AI Knowledge Retention</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        h1 {
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 30px;
+        }
+
+        .question-box {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 100px;
+            resize: vertical;
+            padding: 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+            outline: none;
+        }
+
+        textarea:focus {
+            border-color: #6b7280;
+        }
+
+        button {
+            margin-top: 12px;
+            padding: 12px 22px;
+            border: none;
+            border-radius: 8px;
+            background: #111827;
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #374151;
+        }
+
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .answer {
+            margin-top: 25px;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+        }
+
+        .answer h2,
+        .sources h2 {
+            margin-top: 0;
+        }
+
+        .answer-text {
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .sources {
+            margin-top: 25px;
+        }
+
+        .source {
+            background: white;
+            border-radius: 10px;
+            padding: 16px;
+            margin-top: 12px;
+            border-left: 4px solid #d1d5db;
+        }
+
+        .source-name {
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .source-content {
+            color: #4b5563;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .loading {
+            margin-top: 20px;
+            color: #6b7280;
+        }
+
+        .error {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>AI Knowledge Retention</h1>
+
+    <div class="subtitle">
+        Локальная база знаний с AI-поиском
+    </div>
+
+    <div class="question-box">
+
+        <textarea
+            id="question"
+            placeholder="Задайте вопрос по вашей базе знаний..."
+        ></textarea>
+
+        <button id="askButton" onclick="askQuestion()">
+            Спросить
+        </button>
+
+        <div id="loading" class="loading hidden">
+            Ищу информацию и формирую ответ...
+        </div>
+
+        <div id="error" class="error hidden"></div>
+
+    </div>
+
+    <div id="answerBlock" class="answer hidden">
+
+        <h2>Ответ</h2>
+
+        <div id="answer" class="answer-text"></div>
+
+    </div>
+
+    <div id="sourcesBlock" class="sources hidden">
+
+        <h2>Источники</h2>
+
+        <div id="sources"></div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+async function askQuestion() {
+
+    const questionInput = document.getElementById("question");
+    const button = document.getElementById("askButton");
+
+    const loading = document.getElementById("loading");
+    const error = document.getElementById("error");
+
+    const answerBlock = document.getElementById("answerBlock");
+    const answer = document.getElementById("answer");
+
+    const sourcesBlock = document.getElementById("sourcesBlock");
+    const sources = document.getElementById("sources");
+
+    const question = questionInput.value.trim();
+
+    if (!question) {
+        error.textContent = "Введите вопрос.";
+        error.classList.remove("hidden");
+        return;
+    }
+
+    // Сбрасываем предыдущий результат
+
+    error.classList.add("hidden");
+    answerBlock.classList.add("hidden");
+    sourcesBlock.classList.add("hidden");
+
+    answer.textContent = "";
+    sources.innerHTML = "";
+
+    loading.classList.remove("hidden");
+
+    button.disabled = true;
+    button.textContent = "Обработка...";
+
+    try {
+
+        const response = await fetch(
+            "/ask?q=" + encodeURIComponent(question)
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                "Ошибка сервера: " + response.status
+            );
+        }
+
+        const data = await response.json();
+
+        // Показываем ответ
+
+        answer.textContent = data.answer;
+
+        answerBlock.classList.remove("hidden");
+
+
+        // Показываем источники
+
+        if (data.sources && data.sources.length > 0) {
+
+            data.sources.forEach(source => {
+
+                const sourceElement = document.createElement("div");
+
+                sourceElement.className = "source";
+
+                const nameElement = document.createElement("div");
+
+                nameElement.className = "source-name";
+
+                nameElement.textContent =
+                    "📄 " + source.document;
+
+                const contentElement = document.createElement("div");
+
+                contentElement.className = "source-content";
+
+                contentElement.textContent =
+                    source.content;
+
+                sourceElement.appendChild(nameElement);
+
+                sourceElement.appendChild(contentElement);
+
+                sources.appendChild(sourceElement);
+
+            });
+
+            sourcesBlock.classList.remove("hidden");
+        }
+
+    } catch (err) {
+
+        console.error(err);
+
+        error.textContent =
+            "Не удалось получить ответ. Проверьте, запущен ли сервер.";
+
+        error.classList.remove("hidden");
+
+    } finally {
+
+        loading.classList.add("hidden");
+
+        button.disabled = false;
+
+        button.textContent = "Спросить";
+    }
+}
+
+
+// Можно отправлять вопрос через Ctrl + Enter
+
+document
+    .getElementById("question")
+    .addEventListener("keydown", function(event) {
+
+        if (event.ctrlKey && event.key === "Enter") {
+            askQuestion();
+        }
+
+    });
+
+</script>
+
+</body>
+</html>
