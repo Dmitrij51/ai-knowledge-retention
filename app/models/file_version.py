@@ -7,6 +7,7 @@ from sqlalchemy import (
     LargeBinary,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -21,12 +22,23 @@ class FileVersion(Base):
 
     __tablename__ = "file_versions"
 
+    __table_args__ = (
+        UniqueConstraint(
+            "document_id",
+            "version",
+            name="uq_file_versions_document_version",
+        ),
+    )
+
     id: Mapped[int] = mapped_column(
         primary_key=True,
     )
 
     document_id: Mapped[int] = mapped_column(
-        ForeignKey("documents.id", ondelete="CASCADE"),
+        ForeignKey(
+            "documents.id",
+            ondelete="CASCADE",
+        ),
         nullable=False,
         index=True,
     )
@@ -61,4 +73,3 @@ class FileVersion(Base):
         server_default=func.now(),
         nullable=False,
     )
-

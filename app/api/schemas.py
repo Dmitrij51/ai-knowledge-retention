@@ -1,6 +1,11 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+# ================================================================
+# SEARCH
+# ================================================================
 
 
 class SearchResult(BaseModel):
@@ -15,7 +20,13 @@ class SearchResponse(BaseModel):
     results: list[SearchResult]
 
 
+# ================================================================
+# ASK
+# ================================================================
+
+
 class AskSource(BaseModel):
+    document_id: int
     document: str
     content: str
 
@@ -26,6 +37,11 @@ class AskResponse(BaseModel):
     sources: list[AskSource]
 
 
+# ================================================================
+# DOCUMENTS
+# ================================================================
+
+
 class DocumentResponse(BaseModel):
     id: int
     filename: str
@@ -34,6 +50,11 @@ class DocumentResponse(BaseModel):
     file_hash: str | None
     is_deleted: bool
     created_at: datetime
+
+
+# ================================================================
+# FILE VERSIONS
+# ================================================================
 
 
 class DocumentVersionResponse(BaseModel):
@@ -48,3 +69,23 @@ class DocumentVersionResponse(BaseModel):
 class DocumentVersionsResponse(BaseModel):
     document_id: int
     versions: list[DocumentVersionResponse]
+
+
+# ================================================================
+# WATCHED FOLDERS
+# ================================================================
+
+
+class WatchedFolderCreate(BaseModel):
+    path: str = Field(
+        ...,
+        min_length=1,
+        description="Абсолютный или относительный путь к папке",
+    )
+
+
+class WatchedFolderResponse(BaseModel):
+    id: int
+    path: str
+    enabled: bool
+    created_at: datetime

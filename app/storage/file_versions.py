@@ -16,7 +16,7 @@ def get_versions(
     stmt = (
         select(FileVersion)
         .where(FileVersion.document_id == document_id)
-        .order_by(FileVersion.version)
+        .order_by(FileVersion.version.asc())
     )
 
     return list(session.scalars(stmt).all())
@@ -47,7 +47,11 @@ def get_next_version_number(
     """
     Возвращает номер следующей версии документа.
 
-    Если версий ещё нет — возвращает 1.
+    Если версий ещё нет:
+        1
+
+    Иначе:
+        последняя версия + 1
     """
 
     latest_version = get_latest_version(
@@ -69,7 +73,17 @@ def create_file_version(
 ) -> FileVersion:
     """
     Создаёт новую версию файла.
+
+    Важно:
+    функция только создаёт FileVersion.
+    Diff создаётся в file_versioning.py.
     """
+
+    if not content or not content.strip():
+        raise ValueError("Нельзя создать версию пустого документа.")
+
+    if not file_hash:
+        raise ValueError("Нельзя создать версию без file_hash.")
 
     version_number = get_next_version_number(
         session,
@@ -84,6 +98,7 @@ def create_file_version(
     )
 
     session.add(version)
+
     session.flush()
 
     return version

@@ -1,20 +1,16 @@
+import time
 from pathlib import Path
+from threading import Lock, Timer
 
 from watchdog.events import FileSystemEventHandler
-from watchdog.observers import Observer
 
-from app.services.file_versioning import (
-    process_file_change,
-    create_initial_version,
-)
+from app.services.file_versioning import process_file_change
 from app.services.ingestion import ingest_document
 from app.storage.database import SessionLocal
 from app.storage.documents import (
     get_document_by_path,
     mark_document_deleted,
 )
-from app.watcher.debounce import Debouncer
-
 
 SUPPORTED_EXTENSIONS = {
     ".txt",
@@ -24,101 +20,287 @@ SUPPORTED_EXTENSIONS = {
 }
 
 
+DEBOUNCE_SECONDS = 1.5
+
+
 class FileWatcherHandler(FileSystemEventHandler):
     """
-    Обрабатывает события файловой системы.
+    Следит за файлами внутри одной папки.
+
+    Поддерживает:
+
+    - создание;
+    - изменение;
+    - удаление;
+    - переименование;
+    - перемещение.
     """
 
     def __init__(self):
         super().__init__()
 
-        # Ждём 1 секунду после последнего
-        # изменения файла.
-        self.debouncer = Debouncer(delay=1.0)
+        self._timers: dict[str, Timer] = {}
 
-    def on_created(self, event):
-        if event.is_directory:
-            return
+        self._lock = Lock()
 
-        path = Path(event.src_path)
+    # ================================================================
+    # HELPERS
+    # ================================================================
 
-        print(f"[CREATED] {path}")
+    def _is_supported_file(
+        self,
+        path: str,
+    ) -> bool:
+        """
+        Проверяет расширение файла.
+        """
 
-        if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
-            print(f"[SKIP] Неподдерживаемый формат: {path}")
-            return
+        return Path(path).suffix.lower() in SUPPORTED_EXTENSIONS
 
-        try:
-            if not path.exists():
-                print(f"[SKIP] Файл уже не существует: {path}")
-                return
+    def _cancel_timer(
+        self,
+        path: str,
+    ) -> None:
+        """
+        Отменяет отложенную обработку.
+        """
 
-            document_id = ingest_document(str(path))
+        path = str(Path(path).resolve())
 
-            print(f"[INGEST] Новый файл добавлен: {path} (Document ID={document_id})")
+        with self._lock:
+            timer = self._timers.pop(
+                path,
+                None,
+            )
 
-            # Создаём первую версию.
-            create_initial_version(str(path))
+        if timer is not None:
+            timer.cancel()
 
-        except Exception as exc:
-            print(f"[ERROR] Не удалось добавить файл: {path} | {exc}")
+    def _schedule_file_processing(
+        self,
+        path: str,
+        callback,
+    ) -> None:
+        """
+        Выполняет debounce.
 
-    def on_modified(self, event):
-        if event.is_directory:
-            return
+        Несколько быстрых MODIFY превращаются
+        в одну обработку.
+        """
 
-        path = Path(event.src_path)
+        path = str(Path(path).resolve())
 
-        print(f"[MODIFIED] {path}")
+        self._cancel_timer(path)
 
-        if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
-            print(f"[SKIP] Неподдерживаемый формат: {path}")
-            return
-
-        # Не обрабатываем изменение сразу.
-        # Debouncer дождётся окончания серии изменений.
-        self.debouncer.call(
-            str(path),
-            self._process_modified,
+        timer = Timer(
+            DEBOUNCE_SECONDS,
+            self._run_scheduled,
+            args=(path, callback),
         )
 
-    def _process_modified(
+        timer.daemon = True
+
+        with self._lock:
+            self._timers[path] = timer
+
+        timer.start()
+
+    def _run_scheduled(
         self,
-        file_path: str,
-    ):
-        """
-        Обрабатывает изменение файла
-        после debounce.
-        """
+        path: str,
+        callback,
+    ) -> None:
+
+        with self._lock:
+            self._timers.pop(
+                path,
+                None,
+            )
 
         try:
-            print(f"[DEBOUNCE] Обрабатываем: {file_path}")
-
-            process_file_change(file_path)
+            callback(path)
 
         except Exception as exc:
-            print(f"[ERROR] Не удалось обработать изменение: {file_path} | {exc}")
+            print(f"[WATCHER ERROR] Ошибка обработки {path}: {exc}")
 
-    def on_deleted(self, event):
+    def _wait_until_file_is_stable(
+        self,
+        path: str,
+        attempts: int = 10,
+        delay: float = 0.3,
+    ) -> bool:
+        """
+        Ждёт стабилизации размера файла.
+        """
+
+        file_path = Path(path)
+
+        previous_size = None
+
+        for _ in range(attempts):
+            if not file_path.exists():
+                return False
+
+            try:
+                current_size = file_path.stat().st_size
+
+            except OSError:
+                time.sleep(delay)
+                continue
+
+            if previous_size is not None and current_size == previous_size:
+                return True
+
+            previous_size = current_size
+
+            time.sleep(delay)
+
+        return file_path.exists()
+
+    # ================================================================
+    # CREATE
+    # ================================================================
+
+    def on_created(self, event):
+        """
+        Новый файл.
+        """
+
         if event.is_directory:
             return
 
-        path = Path(event.src_path)
+        path = event.src_path
 
-        print(f"[DELETED] {path}")
-
-        if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
+        if not self._is_supported_file(path):
             return
+
+        print(f"[WATCHER] Новый файл: {path}")
+
+        self._schedule_file_processing(
+            path,
+            self._process_created_file,
+        )
+
+    def _process_created_file(
+        self,
+        path: str,
+    ) -> None:
+        """
+        Индексирует новый файл.
+        """
+
+        file_path = Path(path)
+
+        if not file_path.exists():
+            return
+
+        if not file_path.is_file():
+            return
+
+        if not self._wait_until_file_is_stable(path):
+            print(f"[WATCHER] Файл не стабилизировался: {path}")
+
+            return
+
+        print(f"[WATCHER] Индексация нового файла: {path}")
+
+        ingest_document(path)
+
+        # initial version создаётся
+        # отдельным pipeline.
+        from app.services.file_versioning import (
+            create_initial_version,
+        )
+
+        create_initial_version(path)
+
+        print(f"[WATCHER] Новый файл проиндексирован: {path}")
+
+    # ================================================================
+    # MODIFY
+    # ================================================================
+
+    def on_modified(self, event):
+        """
+        Изменение файла.
+        """
+
+        if event.is_directory:
+            return
+
+        path = event.src_path
+
+        if not self._is_supported_file(path):
+            return
+
+        print(f"[WATCHER] Изменение файла: {path}")
+
+        self._schedule_file_processing(
+            path,
+            self._process_modified_file,
+        )
+
+    def _process_modified_file(
+        self,
+        path: str,
+    ) -> None:
+        """
+        Обрабатывает изменение файла.
+
+        process_file_change()
+        сам проверяет hash.
+        """
+
+        file_path = Path(path)
+
+        if not file_path.exists():
+            return
+
+        if not file_path.is_file():
+            return
+
+        if not self._wait_until_file_is_stable(path):
+            print(f"[WATCHER] Файл не стабилизировался: {path}")
+
+            return
+
+        print(f"[WATCHER] Переиндексация: {path}")
+
+        process_file_change(path)
+
+        print(f"[WATCHER] Переиндексация завершена: {path}")
+
+    # ================================================================
+    # DELETE
+    # ================================================================
+
+    def on_deleted(self, event):
+        """
+        Файл удалён.
+        """
+
+        if event.is_directory:
+            return
+
+        path = event.src_path
+
+        if not self._is_supported_file(path):
+            return
+
+        self._cancel_timer(path)
+
+        print(f"[WATCHER] Файл удалён: {path}")
 
         try:
             with SessionLocal() as session:
                 document = get_document_by_path(
                     session,
-                    str(path.resolve()),
+                    path,
                 )
 
                 if document is None:
-                    print(f"[DELETE] Документ не найден в БД: {path}")
+                    print(f"[WATCHER] Документ не найден в БД: {path}")
+
                     return
 
                 mark_document_deleted(
@@ -128,59 +310,109 @@ class FileWatcherHandler(FileSystemEventHandler):
 
                 session.commit()
 
+            print(f"[WATCHER] Документ помечен удалённым: {path}")
+
         except Exception as exc:
-            print(f"[ERROR] Не удалось обработать удаление: {path} | {exc}")
+            print(f"[WATCHER ERROR] Ошибка удаления {path}: {exc}")
+
+    # ================================================================
+    # MOVE / RENAME
+    # ================================================================
 
     def on_moved(self, event):
+        """
+        Файл был перемещён или переименован.
+        """
+
         if event.is_directory:
             return
 
-        print(f"[MOVED] {event.src_path} -> {event.dest_path}")
+        old_path = event.src_path
+        new_path = event.dest_path
 
+        old_supported = self._is_supported_file(old_path)
 
-def start_watcher(path: str):
-    """
-    Запускает наблюдение за папкой
-    и всеми её подпапками.
-    """
+        new_supported = self._is_supported_file(new_path)
 
-    watch_path = Path(path).resolve()
+        if not old_supported and not new_supported:
+            return
 
-    if not watch_path.exists():
-        raise FileNotFoundError(f"Папка не существует: {watch_path}")
+        print(f"[WATCHER] Файл перемещён:\n    FROM: {old_path}\n    TO:   {new_path}")
 
-    if not watch_path.is_dir():
-        raise NotADirectoryError(f"Это не папка: {watch_path}")
+        self._cancel_timer(old_path)
+        self._cancel_timer(new_path)
 
-    event_handler = FileWatcherHandler()
+        # ------------------------------------------------------------
+        # supported → unsupported
+        #
+        # file.md → file.exe
+        # ------------------------------------------------------------
 
-    observer = Observer()
+        if old_supported and not new_supported:
+            self._mark_deleted(old_path)
 
-    observer.schedule(
-        event_handler,
-        str(watch_path),
-        recursive=True,
-    )
+            return
 
-    observer.start()
+        # ------------------------------------------------------------
+        # unsupported → supported
+        #
+        # file.exe → file.md
+        # ------------------------------------------------------------
 
-    print(f"Наблюдение запущено: {watch_path}")
+        if not old_supported and new_supported:
+            self._schedule_file_processing(
+                new_path,
+                self._process_created_file,
+            )
 
-    print("Изменяй, создавай или удаляй файлы...")
+            return
 
-    print("Для остановки нажми Ctrl+C")
+        # ------------------------------------------------------------
+        # supported → supported
+        #
+        # old.md → new.md
+        #
+        # Старый путь закрываем,
+        # новый индексируем.
+        # ------------------------------------------------------------
 
-    try:
-        while True:
-            pass
+        self._mark_deleted(old_path)
 
-    except KeyboardInterrupt:
-        print("\nОстановка наблюдения...")
+        self._schedule_file_processing(
+            new_path,
+            self._process_created_file,
+        )
 
-        observer.stop()
+    # ================================================================
+    # DELETE HELPER
+    # ================================================================
 
-    observer.join()
+    def _mark_deleted(
+        self,
+        path: str,
+    ) -> None:
+        """
+        Помечает Document как удалённый.
+        """
 
+        try:
+            with SessionLocal() as session:
+                document = get_document_by_path(
+                    session,
+                    path,
+                )
 
-if __name__ == "__main__":
-    start_watcher("test")
+                if document is None:
+                    return
+
+                mark_document_deleted(
+                    session,
+                    document,
+                )
+
+                session.commit()
+
+            print(f"[WATCHER] Документ помечен удалённым: {path}")
+
+        except Exception as exc:
+            print(f"[WATCHER ERROR] Ошибка soft-delete {path}: {exc}")
