@@ -1,0 +1,110 @@
+# ==========================================
+# Byte-compiled / optimized / DLL files
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ==========================================
+# C extensions
+# ==========================================
+*.so
+
+# ==========================================
+# Distribution / packaging
+# ==========================================
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ==========================================
+# Virtual Environments (Виртуальные окружения)
+# ==========================================
+venv/
+.venv/
+env/
+.env/
+ENV/
+env.bak/
+venv.bak/
+
+# ==========================================
+# Environment Variables & Secrets (Переменные окружения)
+# ==========================================
+.env
+.env.local
+.env.*.local
+*.pem
+
+# ==========================================
+# IDEs & Editors (Настройки редакторов)
+# ==========================================
+# PyCharm / IntelliJ
+.idea/
+
+# VS Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# ==========================================
+# Testing & Coverage (Тестирование и покрытие)
+# ==========================================
+.pytest_cache/
+.coverage
+.coverage.*
+*.cover
+.hypothesis/
+htmlcov/
+nosetests.xml
+coverage.xml
+*.xml
+
+# ==========================================
+# Type Checking & Formatting (Линтеры и типизация)
+# ==========================================
+.mypy_cache/
+.ruff_cache/
+.pytype/
+.dmypy.json
+dmypy.json
+
+# ==========================================
+# Databases & Logs (Базы данных и логи)
+# ==========================================
+*.log
+*.sqlite
+*.sqlite3
+data/
+
+
+# AI models
+models_ai/
+*.safetensors
+
+# Hugging Face cache
+.huggingface/
+.cache/
+
+# Test
+test/

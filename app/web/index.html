@@ -1,0 +1,1798 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Knowledge Retention</title>
+
+    <style>
+      /* =========================================================
+         MODERN UI — VISUAL ONLY
+         JavaScript / API / functionality remain unchanged
+      ========================================================= */
+
+      :root {
+        --bg-main: #f6f7fb;
+        --bg-sidebar: rgba(248, 249, 252, 0.92);
+        --bg-card: rgba(255, 255, 255, 0.94);
+        --bg-card-solid: #ffffff;
+        --bg-hover: #f8f9ff;
+        --bg-soft: #f1f3f9;
+
+        --border: #e4e7ef;
+        --border-hover: #d3d7e3;
+        --border-focus: #635bff;
+
+        --text-primary: #171a2b;
+        --text-secondary: #596174;
+        --text-muted: #8a91a3;
+
+        --accent: #635bff;
+        --accent-dark: #5148e5;
+        --accent-light: #eeecff;
+        --accent-glow: rgba(99, 91, 255, 0.16);
+
+        --green: #19b77a;
+        --green-light: #eafaf3;
+
+        --red: #e5484d;
+        --red-light: #fff0f1;
+
+        --code-bg: #151821;
+        --code-header: #10131a;
+
+        --radius-xl: 20px;
+        --radius-lg: 16px;
+        --radius-md: 11px;
+        --radius-sm: 8px;
+
+        --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+
+        --shadow-sm:
+          0 2px 8px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03);
+
+        --shadow-md:
+          0 12px 32px rgba(15, 23, 42, 0.07), 0 3px 8px rgba(15, 23, 42, 0.04);
+
+        --shadow-lg:
+          0 24px 60px rgba(15, 23, 42, 0.13), 0 8px 20px rgba(15, 23, 42, 0.06);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        font-family:
+          Inter,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+        color: var(--text-primary);
+        background: var(--bg-main);
+        overflow: hidden;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      button,
+      input,
+      textarea {
+        font: inherit;
+      }
+
+      button {
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      /* =========================================================
+         SCROLLBARS
+      ========================================================= */
+
+      ::-webkit-scrollbar {
+        width: 7px;
+        height: 7px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: #d8dce6;
+        border-radius: 999px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: #c4c9d6;
+      }
+
+      /* =========================================================
+         LAYOUT
+      ========================================================= */
+
+      .app-layout {
+        display: flex;
+        width: 100vw;
+        height: 100vh;
+        background:
+          radial-gradient(
+            circle at 70% -10%,
+            rgba(99, 91, 255, 0.08),
+            transparent 30%
+          ),
+          var(--bg-main);
+      }
+
+      .sidebar {
+        width: 320px;
+        background: var(--bg-sidebar);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        padding: 18px;
+        flex-shrink: 0;
+        overflow-y: auto;
+        position: relative;
+        z-index: 2;
+      }
+
+      .sidebar::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 160px;
+        background: radial-gradient(
+          circle at 20% 0%,
+          rgba(99, 91, 255, 0.09),
+          transparent 65%
+        );
+        pointer-events: none;
+      }
+
+      .main-content {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        overflow: hidden;
+        background:
+          radial-gradient(
+            circle at 50% -10%,
+            rgba(99, 91, 255, 0.09),
+            transparent 45%
+          ),
+          radial-gradient(
+            circle at 100% 100%,
+            rgba(99, 91, 255, 0.04),
+            transparent 35%
+          ),
+          var(--bg-main);
+      }
+
+      /* =========================================================
+         LOGO
+      ========================================================= */
+
+      .logo-area {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 4px 4px 17px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .logo-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #766dff 0%, #5148e5 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        color: white;
+        box-shadow:
+          0 8px 18px rgba(99, 91, 255, 0.24),
+          inset 0 1px 0 rgba(255, 255, 255, 0.25);
+      }
+
+      .logo-text {
+        min-width: 0;
+      }
+
+      .logo-text h1 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: -0.25px;
+        color: var(--text-primary);
+      }
+
+      .logo-text span {
+        display: block;
+        margin-top: 3px;
+        font-size: 10px;
+        color: var(--text-muted);
+      }
+
+      /* =========================================================
+         SIDEBAR
+      ========================================================= */
+
+      .sidebar-section {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .sidebar-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 2px;
+        font-size: 10px;
+        font-weight: 750;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-muted);
+      }
+
+      .folder-input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .input-field {
+        width: 100%;
+        height: 36px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 0 11px;
+        color: var(--text-primary);
+        font-size: 12px;
+        outline: none;
+        transition:
+          border-color 0.2s ease,
+          box-shadow 0.2s ease,
+          background 0.2s ease;
+        box-shadow: var(--shadow-xs);
+      }
+
+      .input-field::placeholder {
+        color: #a1a7b5;
+      }
+
+      .input-field:hover {
+        border-color: var(--border-hover);
+        background: #fff;
+      }
+
+      .input-field:focus {
+        border-color: var(--border-focus);
+        background: #fff;
+        box-shadow:
+          0 0 0 3px var(--accent-glow),
+          var(--shadow-xs);
+      }
+
+      .btn-row {
+        display: flex;
+        gap: 7px;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 34px;
+        padding: 6px 10px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.9);
+        color: var(--text-secondary);
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          transform 0.15s ease,
+          background 0.15s ease,
+          border-color 0.15s ease,
+          box-shadow 0.15s ease,
+          color 0.15s ease;
+        box-shadow: var(--shadow-xs);
+      }
+
+      .btn:hover {
+        background: #fff;
+        color: var(--text-primary);
+        border-color: var(--border-hover);
+        box-shadow: var(--shadow-sm);
+        transform: translateY(-1px);
+      }
+
+      .btn:active {
+        transform: translateY(0);
+      }
+
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .btn.primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+        border-color: transparent;
+        color: #fff;
+        box-shadow:
+          0 5px 12px rgba(99, 91, 255, 0.22),
+          inset 0 1px 0 rgba(255, 255, 255, 0.14);
+      }
+
+      .btn.primary:hover {
+        background: linear-gradient(135deg, #7169ff, var(--accent-dark));
+        border-color: transparent;
+        color: #fff;
+        box-shadow: 0 7px 16px rgba(99, 91, 255, 0.27);
+      }
+
+      .btn.danger {
+        color: var(--red);
+      }
+
+      .btn.danger:hover {
+        background: var(--red-light);
+        border-color: #ffd0d3;
+        color: #d7353b;
+      }
+
+      .btn.sm {
+        min-height: 27px;
+        padding: 3px 7px;
+        border-radius: 7px;
+        font-size: 10px;
+      }
+
+      /* =========================================================
+         FOLDERS
+      ========================================================= */
+
+      .folders-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 190px;
+        overflow-y: auto;
+        padding: 1px;
+      }
+
+      .folder-card {
+        background: rgba(255, 255, 255, 0.82);
+        border: 1px solid var(--border);
+        border-radius: 13px;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        transition:
+          border-color 0.2s ease,
+          box-shadow 0.2s ease,
+          transform 0.2s ease,
+          background 0.2s ease;
+        box-shadow: var(--shadow-xs);
+      }
+
+      .folder-card:hover {
+        border-color: #d5d8e7;
+        background: #fff;
+        box-shadow: var(--shadow-sm);
+        transform: translateY(-1px);
+      }
+
+      .folder-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .folder-path {
+        min-width: 0;
+        font-size: 11px;
+        font-weight: 600;
+        word-break: break-all;
+        color: var(--text-primary);
+        line-height: 1.45;
+      }
+
+      .folder-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 10px;
+        color: var(--text-muted);
+      }
+
+      .status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #a8adba;
+        box-shadow: 0 0 0 3px rgba(168, 173, 186, 0.12);
+      }
+
+      .status-dot.active {
+        background: var(--green);
+        box-shadow: 0 0 0 3px rgba(25, 183, 122, 0.13);
+      }
+
+      /* =========================================================
+         DOCUMENTS
+      ========================================================= */
+
+      .docs-collapsible {
+        position: relative;
+        z-index: 1;
+        border-top: 1px solid var(--border);
+        padding-top: 13px;
+        margin-top: 2px;
+      }
+
+      .docs-summary {
+        font-size: 10px;
+        font-weight: 750;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-muted);
+        cursor: pointer;
+        user-select: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        list-style: none;
+        padding: 2px;
+        transition: color 0.2s ease;
+      }
+
+      .docs-summary:hover {
+        color: var(--text-secondary);
+      }
+
+      .docs-summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .docs-summary::after {
+        content: "›";
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: 400;
+        transition: transform 0.2s ease;
+      }
+
+      .docs-collapsible[open] .docs-summary::after {
+        transform: rotate(90deg);
+      }
+
+      .docs-content {
+        margin-top: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .documents-list {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        max-height: 180px;
+        overflow-y: auto;
+      }
+
+      .doc-item-compact {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        padding: 6px 7px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        font-size: 11px;
+        color: var(--text-secondary);
+        transition:
+          background 0.15s ease,
+          border-color 0.15s ease;
+      }
+
+      .doc-item-compact:hover {
+        background: rgba(255, 255, 255, 0.8);
+        border-color: var(--border);
+        color: var(--text-primary);
+      }
+
+      .doc-item-name {
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 220px;
+      }
+
+      /* =========================================================
+         CHAT
+      ========================================================= */
+
+      .chat-container {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 44px 20px 150px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        scroll-behavior: smooth;
+      }
+
+      .chat-wrapper {
+        width: 100%;
+        max-width: 820px;
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+      }
+
+      /* =========================================================
+         HERO
+      ========================================================= */
+
+      .hero {
+        text-align: center;
+        margin-top: 70px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 13px;
+        animation: heroAppear 0.5s ease both;
+      }
+
+      @keyframes heroAppear {
+        from {
+          opacity: 0;
+          transform: translateY(12px);
+        }
+
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .hero .logo-icon {
+        width: 64px !important;
+        height: 64px !important;
+        border-radius: 20px;
+        font-size: 30px !important;
+        box-shadow:
+          0 14px 32px rgba(99, 91, 255, 0.22),
+          inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        margin-bottom: 5px;
+      }
+
+      .hero h2 {
+        font-size: clamp(22px, 3vw, 28px);
+        line-height: 1.2;
+        font-weight: 700;
+        letter-spacing: -0.7px;
+        margin: 0;
+        color: var(--text-primary);
+      }
+
+      .hero p {
+        max-width: 560px;
+        color: var(--text-secondary);
+        font-size: 13px;
+        line-height: 1.65;
+        margin: 0;
+      }
+
+      /* =========================================================
+         MESSAGE
+      ========================================================= */
+
+      .message-box {
+        background: var(--bg-card);
+        border: 1px solid rgba(224, 227, 236, 0.9);
+        border-radius: var(--radius-xl);
+        padding: 23px;
+        box-shadow: var(--shadow-md);
+        animation: fadeIn 0.28s ease;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .message-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 17px;
+        padding-bottom: 13px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .message-avatar {
+        width: 31px;
+        height: 31px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        box-shadow: 0 5px 12px rgba(99, 91, 255, 0.2);
+      }
+
+      .message-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text-primary);
+      }
+
+      .formatted-text {
+        font-size: 14px;
+        line-height: 1.75;
+        color: #282d3d;
+      }
+
+      .formatted-text p {
+        margin: 0 0 13px;
+      }
+
+      .formatted-text p:last-child {
+        margin-bottom: 0;
+      }
+
+      .formatted-text h1,
+      .formatted-text h2,
+      .formatted-text h3 {
+        color: var(--text-primary);
+        line-height: 1.3;
+        margin: 20px 0 9px;
+      }
+
+      .formatted-text h1 {
+        font-size: 22px;
+      }
+
+      .formatted-text h2 {
+        font-size: 19px;
+      }
+
+      .formatted-text h3 {
+        font-size: 16px;
+      }
+
+      .formatted-text ul,
+      .formatted-text ol {
+        margin: 0 0 13px 21px;
+        padding: 0;
+      }
+
+      .formatted-text li {
+        margin: 4px 0;
+      }
+
+      .formatted-text strong {
+        font-weight: 700;
+        color: #171a2b;
+      }
+
+      .formatted-text inline-code {
+        background: #f0efff;
+        color: #554de4;
+        padding: 2px 6px;
+        border-radius: 6px;
+        border: 1px solid #dedbff;
+        font-family: "SFMono-Regular", Consolas, monospace;
+        font-size: 12px;
+      }
+
+      /* =========================================================
+         CODE
+      ========================================================= */
+
+      .code-block-container {
+        margin: 16px 0;
+        background: var(--code-bg);
+        border: 1px solid #292e3b;
+        border-radius: 13px;
+        overflow: hidden;
+        box-shadow:
+          0 15px 35px rgba(15, 23, 42, 0.13),
+          0 3px 8px rgba(15, 23, 42, 0.06);
+      }
+
+      .code-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 12px 9px 14px;
+        background: var(--code-header);
+        border-bottom: 1px solid #292e3b;
+        font-family: "SFMono-Regular", Consolas, monospace;
+        font-size: 11px;
+        color: #8f98aa;
+      }
+
+      .code-content {
+        padding: 15px;
+        margin: 0;
+        overflow-x: auto;
+        font-family:
+          "SFMono-Regular", "Cascadia Code", "Fira Code", Consolas, monospace;
+        font-size: 12px;
+        color: #eef1f7;
+        line-height: 1.65;
+      }
+
+      /* =========================================================
+         SOURCES
+      ========================================================= */
+
+      .sources-section {
+        margin-top: 21px;
+        padding-top: 17px;
+        border-top: 1px solid var(--border);
+      }
+
+      .sources-label {
+        font-size: 10px;
+        color: var(--text-muted);
+        margin-bottom: 10px;
+        font-weight: 750;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .sources-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 9px;
+      }
+
+      .source-card {
+        background: #f9faff;
+        border: 1px solid var(--border);
+        border-radius: 11px;
+        padding: 11px;
+        cursor: pointer;
+        transition:
+          transform 0.18s ease,
+          background 0.18s ease,
+          border-color 0.18s ease,
+          box-shadow 0.18s ease;
+      }
+
+      .source-card:hover {
+        background: #fff;
+        border-color: #c9c5ff;
+        box-shadow:
+          0 8px 18px rgba(15, 23, 42, 0.06),
+          0 0 0 2px rgba(99, 91, 255, 0.05);
+        transform: translateY(-2px);
+      }
+
+      .source-title {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .source-snippet {
+        font-size: 10px;
+        line-height: 1.5;
+        color: var(--text-secondary);
+        margin-top: 5px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      /* =========================================================
+         INPUT DOCK
+      ========================================================= */
+
+      .input-dock {
+        position: absolute;
+        bottom: 22px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100% - 40px);
+        max-width: 820px;
+        z-index: 10;
+      }
+
+      .input-dock::before {
+        content: "";
+        position: absolute;
+        left: -25px;
+        right: -25px;
+        bottom: -22px;
+        height: 100px;
+        background: linear-gradient(
+          to top,
+          rgba(246, 247, 251, 0.98),
+          rgba(246, 247, 251, 0)
+        );
+        pointer-events: none;
+        z-index: -1;
+      }
+
+      .input-box {
+        background: rgba(255, 255, 255, 0.88);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        border: 1px solid #dfe2eb;
+        border-radius: 18px;
+        padding: 12px 13px 10px 16px;
+        box-shadow:
+          0 18px 45px rgba(15, 23, 42, 0.1),
+          0 4px 12px rgba(15, 23, 42, 0.05);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        transition:
+          border-color 0.2s ease,
+          box-shadow 0.2s ease,
+          background 0.2s ease;
+      }
+
+      .input-box:focus-within {
+        background: rgba(255, 255, 255, 0.96);
+        border-color: #aaa5ff;
+        box-shadow:
+          0 20px 50px rgba(15, 23, 42, 0.11),
+          0 0 0 3px rgba(99, 91, 255, 0.08);
+      }
+
+      .chat-textarea {
+        width: 100%;
+        background: transparent;
+        border: none;
+        color: var(--text-primary);
+        font-size: 14px;
+        line-height: 1.55;
+        outline: none;
+        resize: none;
+        max-height: 150px;
+        min-height: 48px;
+        padding: 4px 2px;
+      }
+
+      .chat-textarea::placeholder {
+        color: #9aa1b0;
+      }
+
+      .input-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .keyboard-hint {
+        font-size: 10px;
+        color: var(--text-muted);
+      }
+
+      .send-btn {
+        width: 35px;
+        height: 35px;
+        flex-shrink: 0;
+        border-radius: 11px;
+        background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+        border: none;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition:
+          transform 0.18s ease,
+          box-shadow 0.18s ease,
+          opacity 0.18s ease;
+        box-shadow:
+          0 6px 14px rgba(99, 91, 255, 0.27),
+          inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        font-size: 18px;
+        font-weight: 500;
+      }
+
+      .send-btn:hover {
+        transform: translateY(-1px) scale(1.03);
+        box-shadow:
+          0 8px 18px rgba(99, 91, 255, 0.32),
+          inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      }
+
+      .send-btn:active {
+        transform: scale(0.97);
+      }
+
+      .send-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      /* =========================================================
+         MODAL
+      ========================================================= */
+
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(17, 20, 32, 0.42);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        animation: fadeIn 0.2s ease;
+        padding: 20px;
+      }
+
+      .modal-card {
+        background: rgba(255, 255, 255, 0.97);
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        border-radius: 20px;
+        width: 90%;
+        max-width: 700px;
+        max-height: 80vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: var(--shadow-lg);
+        animation: modalAppear 0.22s ease;
+      }
+
+      @keyframes modalAppear {
+        from {
+          opacity: 0;
+          transform: scale(0.97) translateY(8px);
+        }
+
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+
+      .modal-header {
+        padding: 15px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        background: #fafbfe;
+      }
+
+      .modal-body {
+        padding: 18px;
+        overflow-y: auto;
+        font-family: "SFMono-Regular", Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.65;
+        white-space: pre-wrap;
+        color: var(--text-secondary);
+      }
+
+      /* =========================================================
+         LOADING
+      ========================================================= */
+
+      .loading-dots span {
+        animation: blink 1.4s infinite;
+        animation-fill-mode: both;
+      }
+
+      .loading-dots span:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+
+      .loading-dots span:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+
+      @keyframes blink {
+        0% {
+          opacity: 0.2;
+        }
+
+        20% {
+          opacity: 1;
+        }
+
+        100% {
+          opacity: 0.2;
+        }
+      }
+
+      /* =========================================================
+         ERROR
+      ========================================================= */
+
+      #error {
+        border-color: #ffd0d3 !important;
+        background: rgba(255, 247, 247, 0.95);
+        color: var(--red) !important;
+      }
+
+      /* =========================================================
+         UTILITIES
+      ========================================================= */
+
+      .hidden {
+        display: none !important;
+      }
+
+      /* =========================================================
+         RESPONSIVE
+      ========================================================= */
+
+      @media (max-width: 900px) {
+        .sidebar {
+          width: 280px;
+        }
+
+        .chat-container {
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+
+        .input-dock {
+          width: calc(100% - 28px);
+        }
+      }
+
+      @media (max-width: 700px) {
+        body {
+          overflow: auto;
+        }
+
+        .app-layout {
+          min-height: 100vh;
+          height: auto;
+          flex-direction: column;
+        }
+
+        .sidebar {
+          width: 100%;
+          max-height: none;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+        }
+
+        .main-content {
+          min-height: 680px;
+        }
+
+        .chat-container {
+          padding-top: 25px;
+        }
+
+        .hero {
+          margin-top: 35px;
+        }
+
+        .message-box {
+          padding: 18px;
+        }
+
+        .sources-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .input-dock {
+          bottom: 14px;
+        }
+
+        .keyboard-hint {
+          display: none;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .sidebar {
+          padding: 14px;
+        }
+
+        .hero h2 {
+          font-size: 21px;
+        }
+
+        .hero p {
+          font-size: 12px;
+        }
+
+        .chat-container {
+          padding-left: 10px;
+          padding-right: 10px;
+        }
+
+        .input-dock {
+          width: calc(100% - 20px);
+        }
+
+        .input-box {
+          border-radius: 15px;
+        }
+
+        .message-box {
+          border-radius: 15px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="app-layout">
+      <!-- SIDEBAR -->
+      <aside class="sidebar">
+        <div class="logo-area">
+          <div class="logo-icon">✦</div>
+          <div class="logo-text">
+            <h1>Knowledge Retention</h1>
+            <span>Local AI Assistant</span>
+          </div>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-title">
+            <span>Папки наблюдения</span>
+          </div>
+
+          <div class="folder-input-group">
+            <input
+              id="folderPath"
+              class="input-field"
+              type="text"
+              placeholder="/path/to/project"
+            />
+
+            <div class="btn-row">
+              <button
+                id="chooseFolderButton"
+                class="btn"
+                style="flex: 1"
+                onclick="chooseFolder()"
+              >
+                📂 Выбрать
+              </button>
+
+              <button
+                id="addFolderButton"
+                class="btn primary"
+                onclick="addFolder()"
+              >
+                + Добавить
+              </button>
+            </div>
+          </div>
+
+          <div
+            id="folderMessage"
+            class="hidden"
+            style="font-size: 11px; margin-top: 4px"
+          ></div>
+
+          <div id="foldersList" class="folders-list"></div>
+        </div>
+
+        <details class="docs-collapsible">
+          <summary class="docs-summary">
+            <span id="docsCountLabel">Файлы (0)</span>
+          </summary>
+
+          <div class="docs-content">
+            <input
+              id="documentSearch"
+              class="input-field"
+              type="text"
+              placeholder="Поиск..."
+              oninput="filterDocuments()"
+              style="padding: 5px 8px; font-size: 11px"
+            />
+
+            <div id="documentsList" class="documents-list"></div>
+          </div>
+        </details>
+      </aside>
+
+      <!-- MAIN CHAT -->
+      <main class="main-content">
+        <div class="chat-container">
+          <div class="chat-wrapper">
+            <div id="heroState" class="hero">
+              <div
+                class="logo-icon"
+                style="width: 56px; height: 56px; font-size: 28px"
+              >
+                ✦
+              </div>
+
+              <h2>Чем я могу помочь по вашей базе знаний?</h2>
+
+              <p>
+                Задайте вопрос по архитектуре, коду или документации загруженных
+                проектов.
+              </p>
+            </div>
+
+            <div id="answerBlock" class="message-box hidden">
+              <div class="message-header">
+                <div class="message-avatar">✦</div>
+                <div class="message-title">Ответ AI</div>
+              </div>
+
+              <div id="answer" class="formatted-text"></div>
+
+              <div id="sourcesBlock" class="sources-section hidden">
+                <div class="sources-label">Использованные источники</div>
+                <div id="sources" class="sources-grid"></div>
+              </div>
+            </div>
+
+            <div id="loading" class="message-box hidden">
+              <div
+                class="message-header"
+                style="border-bottom: none; margin-bottom: 0"
+              >
+                <div class="message-avatar">✦</div>
+
+                <div class="message-title loading-dots">
+                  Анализирую базу знаний<span>.</span><span>.</span
+                  ><span>.</span>
+                </div>
+              </div>
+            </div>
+
+            <div
+              id="error"
+              class="message-box hidden"
+              style="border-color: var(--red); color: var(--red)"
+            ></div>
+          </div>
+        </div>
+
+        <div class="input-dock">
+          <div class="input-box">
+            <textarea
+              id="question"
+              class="chat-textarea"
+              placeholder="Спросите о чём-нибудь в вашей базе знаний..."
+              rows="1"
+            ></textarea>
+
+            <div class="input-footer">
+              <span class="keyboard-hint"> Ctrl + Enter для отправки </span>
+
+              <button id="askButton" class="send-btn" onclick="askQuestion()">
+                ↑
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Modal -->
+    <div id="fileModal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <span
+            id="modalFileName"
+            style="font-weight: 600; font-size: 14px"
+          ></span>
+
+          <button class="btn sm" onclick="closeModal()">✕</button>
+        </div>
+
+        <div id="modalFileContent" class="modal-body"></div>
+      </div>
+    </div>
+
+    <script>
+      let allDocuments = [];
+
+      async function apiRequest(url, options = {}) {
+        const response = await fetch(url, options);
+        let data = null;
+
+        try {
+          data = await response.json();
+        } catch {
+          data = null;
+        }
+
+        if (!response.ok)
+          throw new Error(data?.detail || `HTTP ${response.status}`);
+
+        return data;
+      }
+
+      async function chooseFolder() {
+        const button = document.getElementById("chooseFolderButton");
+        const input = document.getElementById("folderPath");
+
+        button.disabled = true;
+
+        try {
+          const data = await apiRequest("/choose-folder");
+
+          if (data?.path) input.value = data.path;
+        } catch (err) {
+          showFolderMessage("Ошибка выбора: " + err.message, "error");
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      async function loadFolders() {
+        const container = document.getElementById("foldersList");
+
+        try {
+          const folders = await apiRequest("/watched-folders");
+
+          renderFolders(folders);
+        } catch (err) {
+          container.innerHTML = `<div style="color:var(--red); font-size:11px;">
+              Ошибка загрузки папок
+            </div>`;
+        }
+      }
+
+      function renderFolders(folders) {
+        const container = document.getElementById("foldersList");
+
+        container.innerHTML = "";
+
+        if (!folders?.length) {
+          container.innerHTML = `<div style="color:var(--text-muted); font-size:11px; text-align:center;">
+              Папки не добавлены
+            </div>`;
+          return;
+        }
+
+        folders.forEach((folder) => {
+          const card = document.createElement("div");
+
+          card.className = "folder-card";
+
+          card.innerHTML = `
+            <div class="folder-header">
+              <span class="folder-path">
+                ${escapeHtml(folder.path)}
+              </span>
+            </div>
+
+            <div class="folder-header">
+              <div class="folder-status">
+                <span class="status-dot ${
+                  folder.enabled ? "active" : ""
+                }"></span>
+                ${folder.enabled ? "Активно" : "Отключено"}
+              </div>
+
+              <div class="btn-row">
+                <button
+                  class="btn sm"
+                  onclick="rescanFolder(${folder.id})"
+                >
+                  ↻
+                </button>
+
+                <button
+                  class="btn sm"
+                  onclick="${
+                    folder.enabled ? "disableFolder" : "enableFolder"
+                  }(${folder.id})"
+                >
+                  ${folder.enabled ? "⏸" : "▶"}
+                </button>
+
+                <button
+                  class="btn sm danger"
+                  onclick="deleteFolder(${folder.id})"
+                >
+                  🗑
+                </button>
+              </div>
+            </div>
+          `;
+
+          container.appendChild(card);
+        });
+      }
+
+      async function addFolder() {
+        const input = document.getElementById("folderPath");
+
+        const path = input.value.trim();
+
+        if (!path) return;
+
+        try {
+          await apiRequest("/watched-folders", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ path }),
+          });
+
+          input.value = "";
+
+          loadFolders();
+          loadDocuments();
+        } catch (err) {
+          showFolderMessage(err.message, "error");
+        }
+      }
+
+      async function rescanFolder(id) {
+        try {
+          await apiRequest(`/watched-folders/${id}/rescan`, { method: "POST" });
+
+          loadDocuments();
+        } catch (err) {
+          alert("Ошибка сканирования: " + err.message);
+        }
+      }
+
+      async function enableFolder(id) {
+        await apiRequest(`/watched-folders/${id}/enable`, { method: "POST" });
+
+        loadFolders();
+      }
+
+      async function disableFolder(id) {
+        await apiRequest(`/watched-folders/${id}/disable`, { method: "POST" });
+
+        loadFolders();
+      }
+
+      async function deleteFolder(id) {
+        if (confirm("Удалить папку?")) {
+          await apiRequest(`/watched-folders/${id}`, { method: "DELETE" });
+
+          loadFolders();
+          loadDocuments();
+        }
+      }
+
+      function showFolderMessage(msg, type) {
+        const el = document.getElementById("folderMessage");
+
+        el.textContent = msg;
+
+        el.style.color = type === "error" ? "var(--red)" : "var(--green)";
+
+        el.classList.remove("hidden");
+      }
+
+      async function loadDocuments() {
+        const container = document.getElementById("documentsList");
+
+        try {
+          allDocuments = (await apiRequest("/documents")) || [];
+
+          document.getElementById("docsCountLabel").textContent =
+            `Файлы (${allDocuments.length})`;
+
+          renderDocuments(allDocuments);
+        } catch (err) {
+          container.innerHTML = `<div style="color:var(--text-muted); font-size:10px;">
+              Ошибка загрузки
+            </div>`;
+        }
+      }
+
+      function renderDocuments(docs) {
+        const container = document.getElementById("documentsList");
+
+        container.innerHTML = "";
+
+        if (!docs?.length) {
+          container.innerHTML = `<div style="color:var(--text-muted); font-size:11px; text-align:center; padding:4px;">
+              Файлы отсутствуют
+            </div>`;
+          return;
+        }
+
+        docs.forEach((doc) => {
+          const item = document.createElement("div");
+
+          item.className = "doc-item-compact";
+
+          item.innerHTML = `
+            <span
+              class="doc-item-name"
+              title="${escapeHtml(doc.filename)}"
+            >
+              ${getFileIcon(doc.filename)}
+              ${escapeHtml(doc.filename)}
+            </span>
+
+            <button
+              class="btn sm"
+              style="padding:1px 4px; font-size:10px;"
+              onclick="previewFile(
+                '${escapeHtml(doc.filename)}',
+                '${escapeHtml(doc.path)}'
+              )"
+            >
+              👁
+            </button>
+          `;
+
+          container.appendChild(item);
+        });
+      }
+
+      function filterDocuments() {
+        const q = document.getElementById("documentSearch").value.toLowerCase();
+
+        renderDocuments(
+          allDocuments.filter(
+            (d) =>
+              d.filename?.toLowerCase().includes(q) ||
+              d.path?.toLowerCase().includes(q),
+          ),
+        );
+      }
+
+      async function askQuestion() {
+        const qInput = document.getElementById("question");
+
+        const query = qInput.value.trim();
+
+        if (!query) return;
+
+        document.getElementById("heroState").classList.add("hidden");
+
+        document.getElementById("answerBlock").classList.add("hidden");
+
+        document.getElementById("sourcesBlock").classList.add("hidden");
+
+        document.getElementById("error").classList.add("hidden");
+
+        document.getElementById("loading").classList.remove("hidden");
+
+        try {
+          const data = await apiRequest(`/ask?q=${encodeURIComponent(query)}`);
+
+          document.getElementById("answer").innerHTML = formatMarkdown(
+            data.answer || "Ответ не подготовлен.",
+          );
+
+          if (data.sources?.length) {
+            const sourcesContainer = document.getElementById("sources");
+
+            sourcesContainer.innerHTML = "";
+
+            data.sources.forEach((src) => {
+              const card = document.createElement("div");
+
+              card.className = "source-card";
+
+              card.onclick = () =>
+                previewFile(
+                  src.document || "Источник",
+                  src.document_id,
+                  src.content,
+                );
+
+              card.innerHTML = `
+                <div class="source-title">
+                  ${getFileIcon(src.document)}
+                  ${escapeHtml(src.document || "Источник")}
+                </div>
+
+                ${
+                  src.content
+                    ? `<div class="source-snippet">
+                        ${escapeHtml(src.content)}
+                       </div>`
+                    : ""
+                }
+              `;
+
+              sourcesContainer.appendChild(card);
+            });
+
+            document.getElementById("sourcesBlock").classList.remove("hidden");
+          }
+
+          document.getElementById("answerBlock").classList.remove("hidden");
+        } catch (err) {
+          const errEl = document.getElementById("error");
+
+          errEl.textContent = "Ошибка: " + err.message;
+
+          errEl.classList.remove("hidden");
+        } finally {
+          document.getElementById("loading").classList.add("hidden");
+        }
+      }
+
+      function formatMarkdown(text) {
+        if (!text) return "";
+
+        let codeBlocks = [];
+
+        text = text.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
+          const id = codeBlocks.length;
+
+          codeBlocks.push({
+            lang: lang || "code",
+            code: code.trim(),
+          });
+
+          return `__CODE_BLOCK_${id}__`;
+        });
+
+        let html = escapeHtml(text)
+          .replace(/^### (.*$)/gim, "<h3>$1</h3>")
+          .replace(/^## (.*$)/gim, "<h2>$1</h2>")
+          .replace(/^# (.*$)/gim, "<h1>$1</h1>")
+          .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+          .replace(/`(.*?)`/g, "<inline-code>$1</inline-code>")
+          .replace(/\n\n/g, "</p><p>")
+          .replace(/\n/g, "<br>");
+
+        html = `<p>${html}</p>`;
+
+        codeBlocks.forEach((item, index) => {
+          const codeHTML = `
+              <div class="code-block-container">
+                <div class="code-header">
+                  <span>${item.lang}</span>
+
+                  <button
+                    class="btn sm"
+                    style="background:#303644; color:#fff; border:none;"
+                    onclick="copyCode(this, ${index})"
+                  >
+                    📋 Копировать
+                  </button>
+                </div>
+
+                <pre
+                  class="code-content"
+                  id="code-val-${index}"
+                >${escapeHtml(item.code)}</pre>
+              </div>
+            `;
+
+          html = html.replace(`__CODE_BLOCK_${index}__`, codeHTML);
+        });
+
+        return html;
+      }
+
+      function copyCode(btn, index) {
+        const codeText = document.getElementById(`code-val-${index}`).innerText;
+
+        navigator.clipboard.writeText(codeText).then(() => {
+          btn.textContent = "✓ Скопировано";
+
+          setTimeout(() => (btn.textContent = "📋 Копировать"), 2000);
+        });
+      }
+
+      function previewFile(name, path, snippet = "") {
+        document.getElementById("modalFileName").textContent = name;
+
+        document.getElementById("modalFileContent").textContent =
+          snippet ||
+          `Путь к файлу: ${path}\n\n[Предпросмотр содержания доступен по запросу]`;
+
+        document.getElementById("fileModal").classList.remove("hidden");
+      }
+
+      function closeModal() {
+        document.getElementById("fileModal").classList.add("hidden");
+      }
+
+      function getFileIcon(filename = "") {
+        const ext = filename.split(".").pop().toLowerCase();
+
+        if (["py", "js", "ts", "html", "css", "json"].includes(ext))
+          return "💻";
+
+        if (["md", "txt"].includes(ext)) return "📝";
+
+        if (ext === "pdf") return "📕";
+
+        return "📄";
+      }
+
+      function escapeHtml(text = "") {
+        return text
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      const textarea = document.getElementById("question");
+
+      textarea.addEventListener("input", () => {
+        textarea.style.height = "auto";
+
+        textarea.style.height = textarea.scrollHeight + "px";
+      });
+
+      textarea.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+          e.preventDefault();
+          askQuestion();
+        }
+      });
+
+      document.addEventListener("DOMContentLoaded", () => {
+        loadFolders();
+        loadDocuments();
+      });
+    </script>
+  </body>
+</html>
